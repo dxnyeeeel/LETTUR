@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LETTUR</title>
+  <style>
+:root {
+  --w: min(360px, 86vw);          /* envelope width */
+  --dur: 450ms;                   /* also set by the script below */
+  --red: #790D16;
+  --cream: #E5D3AF;
+  --ink: #790D16;
+  --ink-soft: #933C42;            /* red tinted toward the paper */
+  --paper: #FDFAF3;               /* cream tinted toward white */
+  --accent: #790D16;
+  --env-back: #CDB38C;            /* cream shaded with red */
+  --env-front: #E5D3AF;
+  --env-flap: #DCC59F;
+  --env-flap-inner: #C9AC85;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--serif);
+  color: var(--ink);
+  background: linear-gradient(160deg, #E5D3AF 0%, #F6EEDD 100%);
+  background-attachment: fixed;
+}
+
+body.is-reading { overflow: hidden; }
+
+/* ---------- Stage ---------- */
+
+.stage {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  /* top padding leaves room for the flap and letter when open */
+  padding: calc(var(--w) * 0.22) 1rem 2rem;
+  text-align: center;
+}
+
+.hint {
+  margin: 0;
+  min-height: 1.5em;
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- Envelope ---------- */
+
+.envelope {
+  position: relative;
+  display: block;
+  width: var(--w);
+  aspect-ratio: 3 / 2;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 6px;
+  cursor: pointer;
+  isolation: isolate;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.envelope:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 6px;
+}
+
+.envelope__back,
+.envelope__letter,
+.envelope__front,
+.envelope__flap,
+.envelope__seal {
+  position: absolute;
+  display: block;
+}
+
+.envelope__back {
+  inset: 0;
+  z-index: 0;
+  border-radius: 6px;
+  background: var(--env-back);
+  box-shadow: 0 8px 24px rgba(121, 13, 22, 0.18);
+}
+
+.envelope__letter {
+  left: 7%;
+  top: 6%;
+  width: 86%;
+  height: 88%;
+  z-index: 2;
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 14px, rgba(121, 13, 22, 0.18) 14px 15px) 0 38px / 100% 100% no-repeat,
+    var(--paper);
+  transition: transform var(--dur) ease;
+}
+
+.envelope__letter-name {
+  display: block;
+  padding: 0.7rem 0.5rem 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.envelope__front {
+  inset: 0;
+  z-index: 3;
+  border-radius: 6px;
+  background: var(--env-front);
+  clip-path: polygon(0 0, 50% 55%, 100% 0, 100% 100%, 0 100%);
+}
+
+.envelope__flap {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 55%;
+  z-index: 4;
+  background: var(--env-flap);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: top center;
+  /* z-index swaps halfway, when the flap is edge-on */
+  transition:
+    transform var(--dur) ease,
+    background-color var(--dur) ease,
+    z-index 0s calc(var(--dur) / 2);
+}
+
+.envelope__seal {
+  left: 50%;
+  top: 55%;
+  width: 11%;
+  aspect-ratio: 1;
+  z-index: 5;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: inset 0 0 0 3px rgba(229, 211, 175, 0.55);
+  transform: translate(-50%, -50%);
+  transition: opacity calc(var(--dur) / 2) ease;
+}
+
+/* open state */
+.envelope.is-open .envelope__flap {
+  transform: scaleY(-1);
+  background: var(--env-flap-inner);
+  z-index: 1;
+}
+
+.envelope.is-open .envelope__letter { transform: translateY(-34%); }
+
+.envelope.is-open .envelope__seal { opacity: 0; }
+
+/* ---------- Buttons ---------- */
+
+.read-btn,
+.close-btn {
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  border-radius: 999px;
+}
+
+.read-btn {
+  padding: 0.7rem 1.8rem;
+  border: 0;
+  color: var(--cream);
+  background: var(--accent);
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 300ms ease, transform 300ms ease, visibility 300ms;
+}
+
+.stage.is-ready .read-btn {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+}
+
+.close-btn {
+  padding: 0.5rem 1.2rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+}
+
+.read-btn:hover,
+.close-btn:hover { filter: brightness(0.92); }
+
+.read-btn:focus-visible,
+.close-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- Reading view ---------- */
+
+.reader {
+  width: min(92vw, 600px);
+  max-height: 88vh;
+  max-height: 88dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--paper);
+  box-shadow: 0 20px 60px rgba(60, 6, 11, 0.4);
+  overflow: hidden;
+}
+
+.reader[open] {
+  display: flex;
+  flex-direction: column;
+  animation: reader-in var(--dur) ease;
+}
+
+.reader::backdrop { background: rgba(60, 6, 11, 0.55); }
+
+@keyframes reader-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.reader__bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.75rem 0.75rem 0;
+}
+
+.reader__scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem clamp(1.25rem, 6vw, 2.75rem) clamp(1.5rem, 6vw, 2.5rem);
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+
+.letter__title {
+  margin: 0 0 1.25rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.reader__scroll p { margin: 0 0 1.1rem; overflow-wrap: anywhere; }
+
+.letter__body p { white-space: pre-line; }
+
+.letter__closing { margin-top: 1.75rem; margin-bottom: 0.25rem; }
+
+.letter__signature { font-style: italic; font-size: 1.25rem; }
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+  </style>
+</head>
+<body>
+  <main class="stage" id="stage">
+    <button type="button" class="envelope" id="envelope" aria-expanded="false" aria-controls="reader"
+            aria-label="Envelope. Activate to open or close it.">
+      <span class="envelope__back"></span>
+      <span class="envelope__letter" aria-hidden="true">
+        <span class="envelope__letter-name">For <span id="preview-name"></span></span>
+      </span>
+      <span class="envelope__front"></span>
+      <span class="envelope__flap"></span>
+      <span class="envelope__seal"></span>
+    </button>
+
+    <p class="hint" id="hint" aria-live="polite">Click the envelope to open your letter.</p>
+
+    <button type="button" class="read-btn" id="read-btn">Read letter</button>
+  </main>
+
+  <dialog class="reader" id="reader" aria-labelledby="letter-title">
+    <div class="reader__bar">
+      <button type="button" class="close-btn" id="close-btn">Close letter</button>
+    </div>
+    <article class="reader__scroll">
+      <h2 class="letter__title" id="letter-title"></h2>
+      <p class="letter__greeting" id="letter-greeting"></p>
+      <div class="letter__body" id="letter-body"></div>
+      <p class="letter__closing" id="letter-closing"></p>
+      <p class="letter__signature" id="letter-signature"></p>
+    </article>
+  </dialog>
+
+  <script>
+"use strict";
+
+/* ============================================================
+   EDIT YOUR LETTER HERE
+   Each item in `paragraphs` becomes its own paragraph.
+   Line breaks (\n) inside a paragraph are preserved.
+   ============================================================ */
+const LETTER = {
+  title: "Bitlugg",
+  recipient: "Bitlug",
+  paragraphs: [
+    "another month nanamanzzzz, and i want to say na kung gaano ako kasaya na nandito pa rin tayo, kahit may mga hindi naging madali para sa atin, but still andito parin tayuhh;pp super saya ko ewan ko bakitzz, lalo ngayon hihihiihihiihi, basta masaya ako may magagawa kaba? wala boi. basta alam mo na gaano kita ka love, yun oh, and hanggang ngayon ikaw pa rin yung gusto kong makasama sa mga susunod pang araw, iloveyousoooomuch, lodzzz, lam mo yanzzz.",
+    "i know na medyo naging busy tayo this month, nagka sakit pa hayopp, pero thank you kasi nagm-make time ka parin para satin, and na appreciate ko lahat ng efforts mo para satin. and sobrang happy ko kasi naalagaan mo sarili mo, napansin ko lang din sa mga stories mo na tumaba ka, and maaga kana rin natutulog, and parang na less yung stress mo sa school HAHAHAHAHAHA. and very very proud ako sayo kasi antataas ng nakukuha mong score. nga palaaa about dun sa top 1 nila diyan sa school mo, wag kang magpapadala kung mataas score niya, sabi ko nga whatever score you get, it matters, at pinaghirapan mo yonnn. next time kapag kapag may quiz mag review ikawzzz haa",
+    "so ayunnn, thank you for being part of my life. i'm really happy na ikaw yung nakilala ko, and excited ako sa mga bagay na hindi pa natin nagagawa together, lalo na malayo tayo, men, anlayo kasi natin eh bolshit HAHHAHAHHA. pero hindi naman natin kailangang madaliin lahat sabi ko nga, enjoy lang natin kung anong meron tayo, sulidd",
+  ],
+  closing: "I LOVE YOU SO MUCH, BOII",
+  signature: ""
+};
+
+(function () {
+  const ANIMATION_MS = 450; // written to --dur in CSS so both stay in sync
+  const HINT_CLOSED = "Click the envelope to open your letter.";
+  const HINT_OPEN = "Your letter is ready.";
+
+  const $ = (id) => document.getElementById(id);
+  const stage = $("stage");
+  const envelope = $("envelope");
+  const hint = $("hint");
+  const readBtn = $("read-btn");
+  const reader = $("reader");
+  const closeBtn = $("close-btn");
+
+  // Stop quietly if the page structure is incomplete.
+  if (!stage || !envelope || !hint || !readBtn || !reader || !closeBtn) return;
+
+  const reducedMotion = window.matchMedia
+    ? window.matchMedia("(prefers-reduced-motion: reduce)")
+    : null;
+  const hasModal = typeof reader.showModal === "function";
+
+  // One place for all state; `busy` blocks input while an animation runs.
+  const state = { open: false, busy: false };
+
+  document.documentElement.style.setProperty("--dur", ANIMATION_MS + "ms");
+
+  function setText(id, text) {
+    const el = $(id);
+    if (el) el.textContent = text;
+  }
+
+  function renderLetter() {
+    setText("preview-name", LETTER.recipient);
+    setText("letter-title", LETTER.title);
+    setText("letter-greeting", "Dear " + LETTER.recipient + ",");
+    setText("letter-closing", LETTER.closing);
+    setText("letter-signature", LETTER.signature);
+
+    const body = $("letter-body");
+    if (!body) return;
+    body.textContent = "";
+    LETTER.paragraphs.forEach(function (text) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      body.appendChild(p);
+    });
+  }
+
+  function setEnvelopeOpen(open) {
+    if (state.busy || state.open === open) return;
+    state.busy = true;
+    state.open = open;
+
+    envelope.classList.toggle("is-open", open);
+    envelope.setAttribute("aria-expanded", String(open));
+    hint.textContent = open ? HINT_OPEN : HINT_CLOSED;
+    if (!open) stage.classList.remove("is-ready");
+
+    const wait = reducedMotion && reducedMotion.matches ? 0 : ANIMATION_MS;
+    setTimeout(function () {
+      state.busy = false;
+      if (state.open) stage.classList.add("is-ready"); // reveals "Read letter"
+    }, wait);
+  }
+
+  function openReader() {
+    if (!state.open || state.busy || reader.hasAttribute("open")) return;
+    document.body.classList.add("is-reading");
+    if (hasModal) reader.showModal();
+    else reader.setAttribute("open", "");
+    const scroller = reader.querySelector(".reader__scroll");
+    if (scroller) scroller.scrollTop = 0;
+    closeBtn.focus();
+  }
+
+  function closeReader() {
+    if (!reader.hasAttribute("open")) return;
+    if (hasModal) reader.close(); // fires the "close" event below
+    else {
+      reader.removeAttribute("open");
+      afterReaderClosed();
+    }
+  }
+
+  function afterReaderClosed() {
+    document.body.classList.remove("is-reading");
+    readBtn.focus();
+  }
+
+  envelope.addEventListener("click", function () {
+    setEnvelopeOpen(!state.open);
+  });
+  readBtn.addEventListener("click", openReader);
+  closeBtn.addEventListener("click", closeReader);
+  reader.addEventListener("close", afterReaderClosed); // also covers the Esc key
+
+  // Esc fallback for browsers without <dialog>.showModal()
+  document.addEventListener("keydown", function (event) {
+    if (!hasModal && event.key === "Escape") closeReader();
+  });
+
+  renderLetter();
+})();
+  </script>
+</body>
+</html>
